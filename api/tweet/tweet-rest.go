@@ -17,12 +17,24 @@ func NewTweetRestController(router *gin.Engine, tweetService *tweet_service.Twee
 
 	router.GET("/tweets", controller.listTweets)
 	router.POST("/tweets", controller.createTweet)
+	router.GET("/tweets/:id", controller.getTweet)
 	router.POST("/tweets/:id/like-tweet", controller.likeTweet)
 }
 
 func (tgc *TweetRestController) listTweets(c *gin.Context) {
 	tweets := tgc.tweetService.ListTweets()
 	c.JSON(http.StatusOK, tweets)
+}
+
+func (tgc *TweetRestController) getTweet(c *gin.Context) {
+	tweetID := c.Param("id")
+	tweet, err := tgc.tweetService.GetTweet(tweetID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tweet)
 }
 
 func (tgc *TweetRestController) createTweet(c *gin.Context) {
@@ -41,7 +53,7 @@ func (tgc *TweetRestController) likeTweet(c *gin.Context) {
 	tweetID := c.Param("id")
 	tweet, err := tgc.tweetService.LikeTweet(tweetID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 

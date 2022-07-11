@@ -30,6 +30,18 @@ func (ts *TweetService) ListTweets() []Tweet {
 	return ts.tweets
 }
 
+func (ts *TweetService) GetTweet(tweetId string) (*Tweet, error) {
+	tweet := array.NewArray(ts.tweets).Find(func(t Tweet) bool {
+		return t.ID == tweetId
+	})
+
+	if tweet.ID == "" {
+		return nil, fmt.Errorf("GetTweetError - Tweet %s not found", tweetId)
+	}
+
+	return &tweet, nil
+}
+
 // CreateTweet create new tweet
 func (ts *TweetService) CreateTweet(message string, author string) *Tweet {
 	id, _ := uuid.NewUUID()

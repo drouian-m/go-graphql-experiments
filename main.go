@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	post_api "github.com/drouian-m/go-graphql-experiments/api/post"
 	tweet_api "github.com/drouian-m/go-graphql-experiments/api/tweet"
+	post_service "github.com/drouian-m/go-graphql-experiments/internal/post"
 	tweet_service "github.com/drouian-m/go-graphql-experiments/internal/tweet"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -16,9 +19,9 @@ import (
 	"time"
 )
 
-func graphqlHandler(tweetGraphqlController tweet_api.TweetGraphqlController) gin.HandlerFunc {
+func graphqlHandler(schema *graphql.Schema) gin.HandlerFunc {
 	h := handler.New(&handler.Config{
-		Schema:   &tweetGraphqlController.TweetSchema,
+		Schema:   schema,
 		GraphiQL: true,
 		Pretty:   true,
 	})
@@ -28,16 +31,39 @@ func graphqlHandler(tweetGraphqlController tweet_api.TweetGraphqlController) gin
 	}
 }
 
+func graphqlRouter(router *gin.Engine, query *graphql.Object, mutation *graphql.Object) {
+
+	schema, _ := graphql.NewSchema(graphql.SchemaConfig{
+		Query:    query,
+		Mutation: mutation,
+	})
+
+	router.GET("/graphql", graphqlHandler(&schema))
+	router.POST("/graphql", graphqlHandler(&schema))
+}
+
 func main() {
 	router := gin.Default()
 	router.Use(cors.Default())
 
 	tweetService := tweet_service.NewTweetService()
+	postService := post_service.NewPostService()
 	tweet_api.NewTweetRestController(router, &tweetService)
-	tweetGraphqlController := tweet_api.NewTweetGraphqlController(&tweetService)
-	router.GET("/graphql", graphqlHandler(tweetGraphqlController))
-	router.POST("/graphql", graphqlHandler(tweetGraphqlController))
 
+	rootQuery := graphql.NewObject(graphql.ObjectConfig{
+		Name:   "RootQuery",
+		Fields: graphql.Fields{},
+	})
+
+	rootMutation := graphql.NewObject(graphql.ObjectConfig{
+		Name:   "RootMutation",
+		Fields: graphql.Fields{},
+	})
+
+	tweet_api.NewTweetGraphqlController(&tweetService, rootQuery, rootMutation)
+	post_api.NewPostGraphqlController(&postService, rootQuery, rootMutation)
+
+	graphqlRouter(router, rootQuery, rootMutation)
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: router,
